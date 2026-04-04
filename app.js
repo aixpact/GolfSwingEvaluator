@@ -95,12 +95,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- RESET FUNCTIONALITY ---
     resetBtn.addEventListener('click', () => {
-        vid1.currentTime = 0.01;
-        vid2.currentTime = 0.01;
-        slider1.value = 0;
-        slider2.value = 0;
-        masterSlider.value = 0;
-        syncOffset = 0; 
+        // fje only reset the time
+        // vid1.currentTime = 0.01;
+        // vid2.currentTime = 0.01;
+        // slider1.value = 0;
+        // slider2.value = 0;
+        // masterSlider.value = 0;
+        // syncOffset = 0; 
         updateTimer(0);
     });
 
