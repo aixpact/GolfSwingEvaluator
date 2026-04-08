@@ -26,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevFrameBtn = document.getElementById('prevFrameBtn');
     const nextFrameBtn = document.getElementById('nextFrameBtn');
 
-    let syncOffset = 0; 
+    let syncOffset = 0;
+    let timerOffset = 0;
     const frameTime = 0.033; // Approx 1 frame at 30fps
 
     // --- THE CANVAS RENDERER ---
@@ -94,14 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
     upload2.addEventListener('change', (e) => handleUpload(e, vid2, canvas2, slider2, false));
 
     // --- RESET FUNCTIONALITY ---
+    // Resets the timer to zero from the current position; video frames are preserved
     resetBtn.addEventListener('click', () => {
-        // fje only reset the time
-        // vid1.currentTime = 0.01;
-        // vid2.currentTime = 0.01;
-        // slider1.value = 0;
-        // slider2.value = 0;
-        // masterSlider.value = 0;
-        // syncOffset = 0; 
+        timerOffset = vid1.currentTime;
         updateTimer(0);
     });
 
@@ -109,9 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
     slider1.addEventListener('input', (e) => {
         const newTime = parseFloat(e.target.value);
         vid1.currentTime = newTime;
-        masterSlider.value = newTime; 
+        masterSlider.value = newTime;
         syncOffset = vid2.currentTime - vid1.currentTime;
-        updateTimer(newTime);
+        updateTimer(newTime - timerOffset);
     });
 
     slider2.addEventListener('input', (e) => {
@@ -128,9 +124,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         vid1.currentTime = newTime;
         slider1.value = newTime;
-        masterSlider.value = newTime; 
+        masterSlider.value = newTime;
         syncOffset = vid2.currentTime - vid1.currentTime;
-        updateTimer(newTime);
+        updateTimer(newTime - timerOffset);
     }
 
     function stepVid2(directionAmount) {
@@ -162,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             slider2.value = vid2TargetTime;
         }
 
-        updateTimer(masterTime);
+        updateTimer(masterTime - timerOffset);
     }
 
     masterSlider.addEventListener('input', (e) => {
