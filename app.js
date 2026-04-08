@@ -94,14 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
     upload2.addEventListener('change', (e) => handleUpload(e, vid2, canvas2, slider2, false));
 
     // --- RESET FUNCTIONALITY ---
+    // Resets the timer display only; video frame positions are preserved
     resetBtn.addEventListener('click', () => {
-        // fje only reset the time
-        // vid1.currentTime = 0.01;
-        // vid2.currentTime = 0.01;
-        // slider1.value = 0;
-        // slider2.value = 0;
-        // masterSlider.value = 0;
-        // syncOffset = 0; 
         updateTimer(0);
     });
 
