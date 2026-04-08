@@ -32,8 +32,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressFill   = document.getElementById('progressFill');
     const feedbackPanel  = document.getElementById('feedbackPanel');
     const feedbackText   = document.getElementById('feedbackText');
-    const ollamaDot      = document.getElementById('ollamaDot');
-    const ollamaLabel    = document.getElementById('ollamaLabel');
+    const apiDot         = document.getElementById('apiDot');
+    const apiLabel       = document.getElementById('apiLabel');
+    const keyToggleBtn   = document.getElementById('keyToggleBtn');
+    const keyPanel       = document.getElementById('keyPanel');
+    const apiKeyInput    = document.getElementById('apiKeyInput');
+    const saveKeyBtn     = document.getElementById('saveKeyBtn');
 
     // ── State ─────────────────────────────────────────────────────────────────
     let syncOffset  = 0;
@@ -42,19 +46,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let video1Loaded = false;
     let video2Loaded = false;
-    let ollamaReady  = false;
 
     // Stored timelines from the last analysis scan
     let timeline1 = null;
     let timeline2 = null;
 
-    // ── Ollama status check ───────────────────────────────────────────────────
-    window.Coaching.checkOllama().then(ok => {
-        ollamaReady = ok;
-        ollamaDot.className = 'status-dot ' + (ok ? 'ready' : 'error');
-        ollamaLabel.textContent = ok
-            ? 'AI coaching ready'
-            : 'Ollama not found — sync only';
+    // ── API key UI ────────────────────────────────────────────────────────────
+    function refreshKeyStatus() {
+        const hasKey = window.Coaching.hasApiKey();
+        apiDot.className   = 'status-dot ' + (hasKey ? 'ready' : 'error');
+        apiLabel.textContent  = hasKey ? 'Claude AI ready' : 'No API key';
+        keyToggleBtn.textContent = hasKey ? 'Change key' : 'Set key';
+    }
+
+    refreshKeyStatus();
+
+    keyToggleBtn.addEventListener('click', () => {
+        const isVisible = keyPanel.style.display !== 'none';
+        keyPanel.style.display = isVisible ? 'none' : 'flex';
+        if (!isVisible) {
+            // Pre-fill with masked placeholder if key already exists
+            apiKeyInput.value = '';
+            apiKeyInput.placeholder = window.Coaching.hasApiKey()
+                ? 'Enter new key to replace…'
+                : 'sk-ant-api03-…';
+            apiKeyInput.focus();
+        }
+    });
+
+    saveKeyBtn.addEventListener('click', () => {
+        const key = apiKeyInput.value.trim();
+        if (!key) return;
+        window.Coaching.saveApiKey(key);
+        apiKeyInput.value = '';
+        keyPanel.style.display = 'none';
+        refreshKeyStatus();
+    });
+
+    // Save on Enter
+    apiKeyInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') saveKeyBtn.click();
     });
 
     // ── MoveNet initialisation ────────────────────────────────────────────────
@@ -263,17 +294,16 @@ document.addEventListener('DOMContentLoaded', () => {
             syncOffset = impact2 - impact1;
             applyMasterTime(impact1);
 
-            // Step 4 — coaching (only if Ollama is available)
-            if (ollamaReady) {
+            // Step 4 — coaching (only if API key is set)
+            if (window.Coaching.hasApiKey()) {
                 showProgress('Generating coaching feedback…', 95);
                 const feedback = await window.Coaching.analyze(timeline1, timeline2);
                 showFeedback(feedback.replace(/\n/g, '<br>'));
             } else {
                 showFeedback(
-                    '<span class="feedback-error">Swings aligned at impact.' +
-                    ' To get coaching feedback, run:<br>' +
-                    '<code>OLLAMA_ORIGINS="http://localhost:8080" ollama serve</code>' +
-                    '<br>then reload the page.</span>'
+                    '<span class="feedback-error">Swings aligned at impact. ' +
+                    'To get AI coaching feedback, enter your Anthropic API key ' +
+                    'using the <strong>Set key</strong> button above, then tap Re-Analyse.</span>'
                 );
             }
 

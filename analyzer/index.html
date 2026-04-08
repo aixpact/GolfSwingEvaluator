@@ -21,7 +21,7 @@
             overflow-x: hidden;
         }
 
-        /* ── Status bar ── */
+        /* ── Status / API key bar ── */
         #statusBar {
             display: flex;
             align-items: center;
@@ -39,7 +39,49 @@
             flex-shrink: 0;
         }
         .status-dot.ready  { background: #32d74b; }
-        .status-dot.error  { background: #ff453a; }
+        .status-dot.error  { background: #ff6b6b; }
+        .key-btn {
+            background: none;
+            border: 1px solid #555;
+            color: #aaa;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .key-btn:hover { border-color: #888; color: #ddd; }
+        #keyPanel {
+            background: #2c2c2e;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        #apiKeyInput {
+            flex: 1;
+            background: #1c1c1e;
+            border: 1px solid #555;
+            border-radius: 6px;
+            color: white;
+            font-size: 13px;
+            padding: 6px 10px;
+            font-family: monospace;
+        }
+        #apiKeyInput::placeholder { color: #555; }
+        #saveKeyBtn {
+            background: #0a84ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        #saveKeyBtn:hover { background: #0060d1; }
 
         /* ── Video area ── */
         .video-container {
@@ -238,10 +280,17 @@
 </head>
 <body>
 
-    <!-- Ollama status indicator -->
+    <!-- Claude API key status -->
     <div id="statusBar">
-        <span id="ollamaDot" class="status-dot"></span>
-        <span id="ollamaLabel">Checking AI…</span>
+        <span id="apiDot" class="status-dot"></span>
+        <span id="apiLabel">No API key</span>
+        <button id="keyToggleBtn" class="key-btn">Set key</button>
+    </div>
+
+    <!-- API key input panel (shown/hidden by toggle) -->
+    <div id="keyPanel" style="display:none">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" autocomplete="off" spellcheck="false">
+        <button id="saveKeyBtn">Save</button>
     </div>
 
     <h3 style="margin: 4px 0 10px;">Swing Analyser</h3>
