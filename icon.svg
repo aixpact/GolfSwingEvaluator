@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#42A5F5"/>
+      <stop offset="100%" stop-color="#1255C0"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="rgba(0,0,0,0.25)"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- Ground -->
+  <rect x="58" y="420" width="396" height="7" rx="3.5" fill="white" opacity="0.35"/>
+
+  <!-- Tee -->
+  <polygon points="309,420 317,420 316,388 310,383 304,388" fill="white" opacity="0.7"/>
+
+  <!-- Golf ball -->
+  <circle cx="310" cy="370" r="22" fill="white" filter="url(#shadow)"/>
+  <!-- Ball dimple highlight -->
+  <circle cx="303" cy="363" r="5" fill="white" opacity="0.35"/>
+
+  <!-- Swing arc: dotted path from club head to ball -->
+  <path d="M 92 38 Q 56 230 310 370"
+        stroke="white" stroke-width="4" fill="none"
+        stroke-dasharray="14 9" opacity="0.38" stroke-linecap="round"/>
+
+  <!-- ── GOLFER ── profile, facing right, top of backswing ── -->
+
+  <!-- Head -->
+  <circle cx="226" cy="104" r="34" fill="white" filter="url(#shadow)"/>
+
+  <!-- Torso / spine (neck to hip, leaning slightly forward) -->
+  <line x1="226" y1="138" x2="252" y2="286"
+        stroke="white" stroke-width="28" stroke-linecap="round"/>
+
+  <!-- Front (right) leg — straight, weight shifting forward -->
+  <line x1="264" y1="292" x2="294" y2="420"
+        stroke="white" stroke-width="23" stroke-linecap="round"/>
+
+  <!-- Back (left) leg — slight knee flex -->
+  <path d="M 244 294 Q 220 358 204 420"
+        stroke="white" stroke-width="23" stroke-linecap="round" fill="none"/>
+
+  <!-- Arms: both reaching up-left (club behind head) -->
+  <!-- Upper arms from shoulder -->
+  <line x1="238" y1="188" x2="152" y2="126"
+        stroke="white" stroke-width="21" stroke-linecap="round"/>
+  <!-- Forearms / hands -->
+  <line x1="152" y1="126" x2="108" y2="76"
+        stroke="white" stroke-width="17" stroke-linecap="round"/>
+
+  <!-- Grip / hands knuckle -->
+  <circle cx="106" cy="74" r="13" fill="white"/>
+
+  <!-- Club shaft -->
+  <line x1="106" y1="74" x2="88" y2="36"
+        stroke="white" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Club head (iron) -->
+  <rect x="66" y="22" width="38" height="22" rx="6" fill="white"/>
+</svg>
