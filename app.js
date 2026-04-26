@@ -30,64 +30,146 @@ document.addEventListener('DOMContentLoaded', () => {
     let timerOffset = 0;
     const frameTime = 0.033; // Approx 1 frame at 30fps
 
-    // ── Drawing overlay ───────────────────────────────────────────────────────
+    // ── Drawing + zoom/pan overlay ────────────────────────────────────────────
     const drawCanvas1  = document.getElementById('drawCanvas1');
     const drawCanvas2  = document.getElementById('drawCanvas2');
     const drawModeBtn  = document.getElementById('drawModeBtn');
     const strokeColor  = document.getElementById('strokeColor');
     const strokeWidth  = document.getElementById('strokeWidth');
     const clearDrawBtn = document.getElementById('clearDrawBtn');
+    const resetViewBtn = document.getElementById('resetViewBtn');
 
-    let drawMode    = false;
-    let isDrawing   = false;
-    let lastX = 0, lastY = 0;
-    let activeDrawEl = null;
+    let drawMode = false;
 
-    function getDrawPos(canvas, e) {
-        const rect = canvas.getBoundingClientRect();
-        const src  = e.touches ? e.touches[0] : e;
-        return {
-            x: (src.clientX - rect.left) * (canvas.width  / rect.width),
-            y: (src.clientY - rect.top)  * (canvas.height / rect.height)
-        };
-    }
+    // Per-video zoom/pan transform (canvas-pixel units)
+    const t1 = { scale: 1, x: 0, y: 0 };
+    const t2 = { scale: 1, x: 0, y: 0 };
 
-    function setupDrawEvents(dc, vc) {
+    const MIN_SCALE = 0.5;
+    const MAX_SCALE = 8;
+
+    function setupInteraction(dc, vc, transform) {
+        let isDrawing = false;
+        let isPanning = false;
+        let pinching  = false;
+        let lastX = 0, lastY = 0;
+        let panStart  = { x: 0, y: 0, tx: 0, ty: 0 };
+        let pinchData = { dist: 1, scale: 1, mx: 0, my: 0 };
+
+        function canvasPos(e) {
+            const rect = dc.getBoundingClientRect();
+            const src  = e.touches ? e.touches[0] : e;
+            return {
+                x: (src.clientX - rect.left) * (dc.width  / rect.width),
+                y: (src.clientY - rect.top)  * (dc.height / rect.height)
+            };
+        }
+
+        function applyZoom(mx, my, newScale) {
+            newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+            const ratio = newScale / transform.scale;
+            transform.x = mx + (transform.x - mx) * ratio;
+            transform.y = my + (transform.y - my) * ratio;
+            transform.scale = newScale;
+        }
+
+        // Wheel → zoom toward cursor (always active)
+        dc.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const p = canvasPos(e);
+            applyZoom(p.x, p.y, transform.scale * (e.deltaY < 0 ? 1.1 : 0.9));
+        }, { passive: false });
+
+        // Double-click → reset this video's view
+        dc.addEventListener('dblclick', () => {
+            transform.scale = 1;
+            transform.x = 0;
+            transform.y = 0;
+        });
+
         function onStart(e) {
-            if (!drawMode) return;
-            e.preventDefault();
-            if (dc.width !== vc.width || dc.height !== vc.height) {
-                dc.width  = vc.width;
-                dc.height = vc.height;
+            // Two-finger pinch start
+            if (e.touches && e.touches.length >= 2) {
+                e.preventDefault();
+                pinching  = true;
+                isDrawing = false;
+                isPanning = false;
+                pinchData.dist  = Math.hypot(
+                    e.touches[1].clientX - e.touches[0].clientX,
+                    e.touches[1].clientY - e.touches[0].clientY
+                );
+                pinchData.scale = transform.scale;
+                const rect = dc.getBoundingClientRect();
+                pinchData.mx = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) * (dc.width  / rect.width);
+                pinchData.my = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top)  * (dc.height / rect.height);
+                return;
             }
-            isDrawing    = true;
-            activeDrawEl = dc;
-            const p    = getDrawPos(dc, e);
-            lastX = p.x;
-            lastY = p.y;
-            const dCtx = dc.getContext('2d');
-            dCtx.beginPath();
-            dCtx.arc(p.x, p.y, strokeWidth.value / 2, 0, Math.PI * 2);
-            dCtx.fillStyle = strokeColor.value;
-            dCtx.fill();
-        }
-        function onMove(e) {
-            if (!isDrawing || activeDrawEl !== dc) return;
+
             e.preventDefault();
-            const p    = getDrawPos(dc, e);
-            const dCtx = dc.getContext('2d');
-            dCtx.beginPath();
-            dCtx.moveTo(lastX, lastY);
-            dCtx.lineTo(p.x, p.y);
-            dCtx.strokeStyle = strokeColor.value;
-            dCtx.lineWidth   = parseFloat(strokeWidth.value);
-            dCtx.lineCap     = 'round';
-            dCtx.lineJoin    = 'round';
-            dCtx.stroke();
-            lastX = p.x;
-            lastY = p.y;
+            const p = canvasPos(e);
+
+            if (drawMode) {
+                if (dc.width !== vc.width || dc.height !== vc.height) {
+                    dc.width  = vc.width;
+                    dc.height = vc.height;
+                }
+                isDrawing = true;
+                lastX = p.x;
+                lastY = p.y;
+                const dCtx = dc.getContext('2d');
+                dCtx.beginPath();
+                dCtx.arc(p.x, p.y, parseFloat(strokeWidth.value) / 2, 0, Math.PI * 2);
+                dCtx.fillStyle = strokeColor.value;
+                dCtx.fill();
+            } else {
+                isPanning = true;
+                const src = e.touches ? e.touches[0] : e;
+                panStart  = { x: src.clientX, y: src.clientY, tx: transform.x, ty: transform.y };
+                dc.style.cursor = 'grabbing';
+            }
         }
-        function onStop() { isDrawing = false; activeDrawEl = null; }
+
+        function onMove(e) {
+            // Pinch zoom
+            if (pinching && e.touches && e.touches.length >= 2) {
+                e.preventDefault();
+                const dist = Math.hypot(
+                    e.touches[1].clientX - e.touches[0].clientX,
+                    e.touches[1].clientY - e.touches[0].clientY
+                );
+                applyZoom(pinchData.mx, pinchData.my, pinchData.scale * (dist / pinchData.dist));
+                return;
+            }
+
+            if (isDrawing) {
+                e.preventDefault();
+                const p    = canvasPos(e);
+                const dCtx = dc.getContext('2d');
+                dCtx.beginPath();
+                dCtx.moveTo(lastX, lastY);
+                dCtx.lineTo(p.x, p.y);
+                dCtx.strokeStyle = strokeColor.value;
+                dCtx.lineWidth   = parseFloat(strokeWidth.value);
+                dCtx.lineCap     = 'round';
+                dCtx.lineJoin    = 'round';
+                dCtx.stroke();
+                lastX = p.x;
+                lastY = p.y;
+            } else if (isPanning) {
+                e.preventDefault();
+                const src  = e.touches ? e.touches[0] : e;
+                const rect = dc.getBoundingClientRect();
+                transform.x = panStart.tx + (src.clientX - panStart.x) * (dc.width  / rect.width);
+                transform.y = panStart.ty + (src.clientY - panStart.y) * (dc.height / rect.height);
+            }
+        }
+
+        function onStop() {
+            isDrawing = false;
+            isPanning = false;
+            pinching  = false;
+            dc.style.cursor = drawMode ? 'crosshair' : 'grab';
+        }
 
         dc.addEventListener('mousedown',  onStart);
         dc.addEventListener('mousemove',  onMove);
@@ -98,17 +180,14 @@ document.addEventListener('DOMContentLoaded', () => {
         dc.addEventListener('touchend',   onStop);
     }
 
-    setupDrawEvents(drawCanvas1, canvas1);
-    setupDrawEvents(drawCanvas2, canvas2);
+    setupInteraction(drawCanvas1, canvas1, t1);
+    setupInteraction(drawCanvas2, canvas2, t2);
 
     drawModeBtn.addEventListener('click', () => {
         drawMode = !drawMode;
         drawModeBtn.textContent = drawMode ? '✏️ Drawing' : '✏️ Draw';
         drawModeBtn.classList.toggle('active', drawMode);
-        const pe = drawMode ? 'auto' : 'none';
-        const cu = drawMode ? 'crosshair' : 'default';
-        drawCanvas1.style.pointerEvents = pe;
-        drawCanvas2.style.pointerEvents = pe;
+        const cu = drawMode ? 'crosshair' : 'grab';
         drawCanvas1.style.cursor = cu;
         drawCanvas2.style.cursor = cu;
     });
@@ -118,13 +197,28 @@ document.addEventListener('DOMContentLoaded', () => {
         drawCanvas2.getContext('2d').clearRect(0, 0, drawCanvas2.width, drawCanvas2.height);
     });
 
+    resetViewBtn.addEventListener('click', () => {
+        t1.scale = 1; t1.x = 0; t1.y = 0;
+        t2.scale = 1; t2.x = 0; t2.y = 0;
+    });
+
     // --- THE CANVAS RENDERER ---
     function renderCanvasLoop() {
         if (vid1.readyState >= 2) {
+            ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
+            ctx1.save();
+            ctx1.translate(t1.x, t1.y);
+            ctx1.scale(t1.scale, t1.scale);
             ctx1.drawImage(vid1, 0, 0, canvas1.width, canvas1.height);
+            ctx1.restore();
         }
         if (vid2.readyState >= 2) {
+            ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
+            ctx2.save();
+            ctx2.translate(t2.x, t2.y);
+            ctx2.scale(t2.scale, t2.scale);
             ctx2.drawImage(vid2, 0, 0, canvas2.width, canvas2.height);
+            ctx2.restore();
         }
         requestAnimationFrame(renderCanvasLoop);
     }
