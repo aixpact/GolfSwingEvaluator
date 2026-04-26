@@ -53,8 +53,9 @@
         .micro-scrub-row {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
             margin-top: 10px;
+            justify-content: center;
         }
         .micro-btn {
             background-color: #3a3a3c;
@@ -71,12 +72,6 @@
         }
         .micro-btn:active { background-color: #4c4c4e; }
         .micro-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .micro-scrub-row input[type="range"] {
-            margin-top: 0;
-            flex: 1;
-            width: 100%; /* Fix for iOS slider width */
-        }
         
         .upload-section { display: flex; gap: 10px; justify-content: center; margin-top: 10px; }
         input[type="file"] { display: none; }
@@ -135,9 +130,10 @@
         .scrub-row {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            justify-content: center;
         }
-        
+
         .icon-btn {
             background-color: #3a3a3c;
             font-size: 18px;
@@ -150,11 +146,57 @@
         }
         .icon-btn:active { background-color: #4c4c4e; }
         .icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        #masterSlider {
-            height: 20px;
-            flex: 1;
-            margin: 0;
+
+        /* ── Jog wheel ── */
+        .jog-wheel {
+            position: relative;
+            flex-shrink: 0;
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 38% 32%, #606064, #3a3a3c 48%, #1a1a1c);
+            border: 2px solid #505054;
+            box-shadow:
+                0 6px 18px rgba(0,0,0,0.7),
+                inset 0 1px 0 rgba(255,255,255,0.12),
+                inset 0 -2px 4px rgba(0,0,0,0.5);
+            cursor: not-allowed;
+            user-select: none;
+            touch-action: none;
+            opacity: 0.4;
+            transition: opacity 0.2s, box-shadow 0.15s;
+        }
+        .jog-wheel.enabled {
+            cursor: grab;
+            opacity: 1;
+        }
+        .jog-wheel.enabled:active {
+            cursor: grabbing;
+            box-shadow:
+                0 2px 8px rgba(0,0,0,0.7),
+                inset 0 1px 0 rgba(255,255,255,0.12),
+                inset 0 -2px 4px rgba(0,0,0,0.5);
+        }
+        .wheel-dot {
+            position: absolute;
+            top: 9px;
+            left: calc(50% - 3px);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #0a84ff;
+            box-shadow: 0 0 8px rgba(10,132,255,0.8);
+        }
+        .jog-wheel:not(.enabled) .wheel-dot {
+            background: #555;
+            box-shadow: none;
+        }
+        .master-jog-wheel {
+            width: 90px;
+            height: 90px;
+        }
+        .master-jog-wheel .wheel-dot {
+            top: 11px;
         }
 
         /* ── Drawing overlay ── */
@@ -239,7 +281,7 @@
             <video id="vid1" class="hidden-video" playsinline muted autoplay></video>
             <div class="micro-scrub-row">
                 <button id="prevFrameBtn1" class="micro-btn" disabled>➖</button>
-                <input type="range" id="slider1" value="0" min="0" step="0.01" disabled>
+                <div class="jog-wheel" id="jogWheel1"><div class="wheel-dot"></div></div>
                 <button id="nextFrameBtn1" class="micro-btn" disabled>➕</button>
             </div>
         </div>
@@ -252,7 +294,7 @@
             <video id="vid2" class="hidden-video" playsinline muted autoplay></video>
             <div class="micro-scrub-row">
                 <button id="prevFrameBtn2" class="micro-btn" disabled>➖</button>
-                <input type="range" id="slider2" value="0" min="0" step="0.01" disabled>
+                <div class="jog-wheel" id="jogWheel2"><div class="wheel-dot"></div></div>
                 <button id="nextFrameBtn2" class="micro-btn" disabled>➕</button>
             </div>
         </div>
@@ -277,7 +319,7 @@
         
         <div class="scrub-row">
             <button id="prevFrameBtn" class="icon-btn" disabled>➖</button>
-            <input type="range" id="masterSlider" value="0" min="0" step="0.01" disabled>
+            <div class="jog-wheel master-jog-wheel" id="masterJogWheel"><div class="wheel-dot"></div></div>
             <button id="nextFrameBtn" class="icon-btn" disabled>➕</button>
         </div>
     </div>

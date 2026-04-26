@@ -12,9 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas2 = document.getElementById('canvas2');
     const ctx2    = canvas2.getContext('2d');
 
-    const slider1      = document.getElementById('slider1');
-    const slider2      = document.getElementById('slider2');
-    const masterSlider = document.getElementById('masterSlider');
+    const jogWheel1      = document.getElementById('jogWheel1');
+    const jogWheel2      = document.getElementById('jogWheel2');
+    const masterJogWheel = document.getElementById('masterJogWheel');
+    let masterDuration = 0;
 
     const prevFrameBtn1 = document.getElementById('prevFrameBtn1');
     const nextFrameBtn1 = document.getElementById('nextFrameBtn1');
@@ -211,6 +212,58 @@ document.addEventListener('DOMContentLoaded', () => {
         t2.scale = 1; t2.x = 0; t2.y = 0;
     });
 
+    // ── Jog wheel ────────────────────────────────────────────────────────────
+    function enableWheel(wheelEl) {
+        wheelEl.classList.add('enabled');
+    }
+
+    function setupJogWheel(wheelEl, onStep) {
+        let dragging = false;
+        let lastClientX = 0;
+        let angle = 0;
+        let accumulator = 0;
+        const sensitivity = frameTime / 5; // 5 px drag = 1 frame at 30 fps
+
+        function clientX(e) {
+            return e.touches ? e.touches[0].clientX : e.clientX;
+        }
+
+        function onStart(e) {
+            if (!wheelEl.classList.contains('enabled')) return;
+            e.preventDefault();
+            dragging = true;
+            lastClientX = clientX(e);
+            accumulator = 0;
+        }
+
+        function onMove(e) {
+            if (!dragging) return;
+            e.preventDefault();
+            const cx = clientX(e);
+            const dx = cx - lastClientX;
+            lastClientX = cx;
+
+            angle += dx * 3;
+            wheelEl.style.transform = `rotate(${angle}deg)`;
+
+            accumulator += dx * sensitivity;
+            if (Math.abs(accumulator) >= frameTime) {
+                const frames = Math.trunc(accumulator / frameTime);
+                accumulator -= frames * frameTime;
+                onStep(frames * frameTime);
+            }
+        }
+
+        function onStop() { dragging = false; }
+
+        wheelEl.addEventListener('mousedown',  onStart);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onStop);
+        wheelEl.addEventListener('touchstart', onStart, { passive: false });
+        wheelEl.addEventListener('touchmove',  onMove,  { passive: false });
+        wheelEl.addEventListener('touchend',   onStop);
+    }
+
     // ── State ─────────────────────────────────────────────────────────────────
     let syncOffset  = 0;
     let timerOffset = 0;
@@ -316,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Upload handling ───────────────────────────────────────────────────────
-    function handleUpload(event, videoEl, canvasEl, sliderEl, isVideo1) {
+    function handleUpload(event, videoEl, canvasEl, isVideo1) {
         const file = event.target.files[0];
         if (!file || !file.type.startsWith('video/')) return;
 
@@ -330,36 +383,32 @@ document.addEventListener('DOMContentLoaded', () => {
             drawEl.width  = canvasEl.width;
             drawEl.height = canvasEl.height;
 
-            sliderEl.max      = videoEl.duration;
-            sliderEl.disabled = false;
-
             if (isVideo1) {
-                masterSlider.max      = videoEl.duration;
-                masterSlider.disabled = false;
+                masterDuration        = videoEl.duration;
                 resetBtn.disabled     = false;
                 prevFrameBtn.disabled = false;
                 nextFrameBtn.disabled = false;
                 prevFrameBtn1.disabled = false;
                 nextFrameBtn1.disabled = false;
+                enableWheel(jogWheel1);
+                enableWheel(masterJogWheel);
                 video1Loaded = true;
             } else {
                 prevFrameBtn2.disabled = false;
                 nextFrameBtn2.disabled = false;
+                enableWheel(jogWheel2);
                 video2Loaded = true;
             }
 
             videoEl.pause();
             videoEl.currentTime = 0.01;
 
-            // Enable Analyse button once both videos are loaded
-            if (video1Loaded && video2Loaded) {
-                analyseBtn.disabled = false;
-            }
+            if (video1Loaded && video2Loaded) analyseBtn.disabled = false;
         };
     }
 
-    upload1.addEventListener('change', e => handleUpload(e, vid1, canvas1, slider1, true));
-    upload2.addEventListener('change', e => handleUpload(e, vid2, canvas2, slider2, false));
+    upload1.addEventListener('change', e => handleUpload(e, vid1, canvas1, true));
+    upload2.addEventListener('change', e => handleUpload(e, vid2, canvas2, false));
 
     // ── Reset ─────────────────────────────────────────────────────────────────
     resetBtn.addEventListener('click', () => {
@@ -368,33 +417,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Per-video scrubbing ───────────────────────────────────────────────────
-    slider1.addEventListener('input', e => {
-        const t = parseFloat(e.target.value);
-        vid1.currentTime = t;
-        masterSlider.value = t;
-        syncOffset = vid2.currentTime - vid1.currentTime;
-        updateTimer(t - timerOffset);
-    });
-
-    slider2.addEventListener('input', e => {
-        const t = parseFloat(e.target.value);
-        vid2.currentTime = t;
-        syncOffset = vid2.currentTime - vid1.currentTime;
-    });
-
     function stepVid1(delta) {
-        const t = Math.max(0, Math.min(vid1.currentTime + delta, vid1.duration));
+        const t = Math.max(0, Math.min(vid1.currentTime + delta, vid1.duration || 0));
         vid1.currentTime = t;
-        slider1.value = t;
-        masterSlider.value = t;
         syncOffset = vid2.currentTime - vid1.currentTime;
         updateTimer(t - timerOffset);
     }
 
     function stepVid2(delta) {
-        const t = Math.max(0, Math.min(vid2.currentTime + delta, vid2.duration));
+        const t = Math.max(0, Math.min(vid2.currentTime + delta, vid2.duration || 0));
         vid2.currentTime = t;
-        slider2.value = t;
         syncOffset = vid2.currentTime - vid1.currentTime;
     }
 
@@ -403,29 +435,26 @@ document.addEventListener('DOMContentLoaded', () => {
     prevFrameBtn2.addEventListener('click', () => stepVid2(-frameTime));
     nextFrameBtn2.addEventListener('click', () => stepVid2(frameTime));
 
+    setupJogWheel(jogWheel1, (delta) => stepVid1(delta));
+    setupJogWheel(jogWheel2, (delta) => stepVid2(delta));
+
     // ── Master scrubbing ──────────────────────────────────────────────────────
     function applyMasterTime(t) {
-        vid1.currentTime   = t;
-        slider1.value      = t;
-        masterSlider.value = t;
-
+        vid1.currentTime = t;
         const t2 = t + syncOffset;
-        if (t2 >= 0 && t2 <= vid2.duration) {
-            vid2.currentTime = t2;
-            slider2.value    = t2;
-        }
+        if (t2 >= 0 && t2 <= (vid2.duration || 0)) vid2.currentTime = t2;
         updateTimer(t - timerOffset);
     }
 
-    masterSlider.addEventListener('input', e => applyMasterTime(parseFloat(e.target.value)));
-
     function stepMaster(delta) {
-        const t = Math.max(0, Math.min(parseFloat(masterSlider.value) + delta, masterSlider.max));
+        const t = Math.max(0, Math.min(vid1.currentTime + delta, masterDuration));
         applyMasterTime(t);
     }
 
     prevFrameBtn.addEventListener('click', () => stepMaster(-frameTime));
     nextFrameBtn.addEventListener('click', () => stepMaster(frameTime));
+
+    setupJogWheel(masterJogWheel, (delta) => stepMaster(delta));
 
     // ── Progress helpers ──────────────────────────────────────────────────────
     function showProgress(stepText, pct) {
