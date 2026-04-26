@@ -30,6 +30,94 @@ document.addEventListener('DOMContentLoaded', () => {
     let timerOffset = 0;
     const frameTime = 0.033; // Approx 1 frame at 30fps
 
+    // ── Drawing overlay ───────────────────────────────────────────────────────
+    const drawCanvas1  = document.getElementById('drawCanvas1');
+    const drawCanvas2  = document.getElementById('drawCanvas2');
+    const drawModeBtn  = document.getElementById('drawModeBtn');
+    const strokeColor  = document.getElementById('strokeColor');
+    const strokeWidth  = document.getElementById('strokeWidth');
+    const clearDrawBtn = document.getElementById('clearDrawBtn');
+
+    let drawMode    = false;
+    let isDrawing   = false;
+    let lastX = 0, lastY = 0;
+    let activeDrawEl = null;
+
+    function getDrawPos(canvas, e) {
+        const rect = canvas.getBoundingClientRect();
+        const src  = e.touches ? e.touches[0] : e;
+        return {
+            x: (src.clientX - rect.left) * (canvas.width  / rect.width),
+            y: (src.clientY - rect.top)  * (canvas.height / rect.height)
+        };
+    }
+
+    function setupDrawEvents(dc, vc) {
+        function onStart(e) {
+            if (!drawMode) return;
+            e.preventDefault();
+            if (dc.width !== vc.width || dc.height !== vc.height) {
+                dc.width  = vc.width;
+                dc.height = vc.height;
+            }
+            isDrawing    = true;
+            activeDrawEl = dc;
+            const p    = getDrawPos(dc, e);
+            lastX = p.x;
+            lastY = p.y;
+            const dCtx = dc.getContext('2d');
+            dCtx.beginPath();
+            dCtx.arc(p.x, p.y, strokeWidth.value / 2, 0, Math.PI * 2);
+            dCtx.fillStyle = strokeColor.value;
+            dCtx.fill();
+        }
+        function onMove(e) {
+            if (!isDrawing || activeDrawEl !== dc) return;
+            e.preventDefault();
+            const p    = getDrawPos(dc, e);
+            const dCtx = dc.getContext('2d');
+            dCtx.beginPath();
+            dCtx.moveTo(lastX, lastY);
+            dCtx.lineTo(p.x, p.y);
+            dCtx.strokeStyle = strokeColor.value;
+            dCtx.lineWidth   = parseFloat(strokeWidth.value);
+            dCtx.lineCap     = 'round';
+            dCtx.lineJoin    = 'round';
+            dCtx.stroke();
+            lastX = p.x;
+            lastY = p.y;
+        }
+        function onStop() { isDrawing = false; activeDrawEl = null; }
+
+        dc.addEventListener('mousedown',  onStart);
+        dc.addEventListener('mousemove',  onMove);
+        dc.addEventListener('mouseup',    onStop);
+        dc.addEventListener('mouseleave', onStop);
+        dc.addEventListener('touchstart', onStart, { passive: false });
+        dc.addEventListener('touchmove',  onMove,  { passive: false });
+        dc.addEventListener('touchend',   onStop);
+    }
+
+    setupDrawEvents(drawCanvas1, canvas1);
+    setupDrawEvents(drawCanvas2, canvas2);
+
+    drawModeBtn.addEventListener('click', () => {
+        drawMode = !drawMode;
+        drawModeBtn.textContent = drawMode ? '✏️ Drawing' : '✏️ Draw';
+        drawModeBtn.classList.toggle('active', drawMode);
+        const pe = drawMode ? 'auto' : 'none';
+        const cu = drawMode ? 'crosshair' : 'default';
+        drawCanvas1.style.pointerEvents = pe;
+        drawCanvas2.style.pointerEvents = pe;
+        drawCanvas1.style.cursor = cu;
+        drawCanvas2.style.cursor = cu;
+    });
+
+    clearDrawBtn.addEventListener('click', () => {
+        drawCanvas1.getContext('2d').clearRect(0, 0, drawCanvas1.width, drawCanvas1.height);
+        drawCanvas2.getContext('2d').clearRect(0, 0, drawCanvas2.width, drawCanvas2.height);
+    });
+
     // --- THE CANVAS RENDERER ---
     function renderCanvasLoop() {
         if (vid1.readyState >= 2) {
@@ -65,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
             videoElement.onloadedmetadata = () => {
                 canvasElement.width = videoElement.videoWidth || 600;
                 canvasElement.height = videoElement.videoHeight || 800;
+                const drawEl = isVideo1 ? drawCanvas1 : drawCanvas2;
+                drawEl.width  = canvasElement.width;
+                drawEl.height = canvasElement.height;
                 
                 sliderElement.max = videoElement.duration;
                 sliderElement.disabled = false;
