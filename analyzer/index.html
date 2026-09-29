@@ -388,6 +388,35 @@
             border-radius: 4px;
             font-size: 12px;
         }
+
+        /* ── Pane toggle bar ── */
+        .pane-bar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        #paneSwitcher {
+            display: none;
+            flex: 1;
+            gap: 8px;
+        }
+        .pane-tab {
+            background: #3a3a3c;
+            border: none;
+            color: #888;
+            padding: 7px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+        }
+        .pane-tab.active { background: #0a84ff; color: white; }
+        .pane-tab:active  { opacity: 0.8; }
+        .video-wrapper.pane-hidden { display: none; }
+        .video-wrapper.pane-full   { width: 100%; }
     </style>
 </head>
 <body>
@@ -413,6 +442,14 @@
 
         <label for="upload2" class="btn">Upload Swing 2</label>
         <input type="file" id="upload2" accept="video/*">
+    </div>
+
+    <div class="pane-bar">
+        <div id="paneSwitcher">
+            <button id="paneBtn1" class="pane-tab active">Swing 1</button>
+            <button id="paneBtn2" class="pane-tab">Swing 2</button>
+        </div>
+        <button id="paneToggleBtn" class="key-btn">⊡ One pane</button>
     </div>
 
     <div class="video-container">
