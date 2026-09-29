@@ -530,6 +530,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ── Pane toggle ───────────────────────────────────────────────────────────
+    const paneToggleBtn = document.getElementById('paneToggleBtn');
+    const paneSwitcher  = document.getElementById('paneSwitcher');
+    const paneBtn1      = document.getElementById('paneBtn1');
+    const paneBtn2      = document.getElementById('paneBtn2');
+    const videoContainer = document.querySelector('.video-container');
+    const wrapper1 = videoContainer.children[0];
+    const wrapper2 = videoContainer.children[1];
+
+    let singlePane    = false;
+    let activePaneIdx = 0;
+
+    function applyPaneLayout() {
+        if (singlePane) {
+            paneToggleBtn.textContent  = '⊞ Two panes';
+            paneSwitcher.style.display = 'flex';
+            const showFirst = activePaneIdx === 0;
+            wrapper1.classList.toggle('pane-hidden', !showFirst);
+            wrapper1.classList.toggle('pane-full',    showFirst);
+            wrapper2.classList.toggle('pane-hidden',  showFirst);
+            wrapper2.classList.toggle('pane-full',   !showFirst);
+            paneBtn1.classList.toggle('active',  showFirst);
+            paneBtn2.classList.toggle('active', !showFirst);
+        } else {
+            paneToggleBtn.textContent  = '⊡ One pane';
+            paneSwitcher.style.display = 'none';
+            wrapper1.classList.remove('pane-hidden', 'pane-full');
+            wrapper2.classList.remove('pane-hidden', 'pane-full');
+        }
+    }
+
+    paneToggleBtn.addEventListener('click', () => { singlePane = !singlePane; applyPaneLayout(); });
+    paneBtn1.addEventListener('click', () => { activePaneIdx = 0; applyPaneLayout(); });
+    paneBtn2.addEventListener('click', () => { activePaneIdx = 1; applyPaneLayout(); });
+
     // ── AppState export (for external module access if needed) ────────────────
     window.AppState = {
         get syncOffset()  { return syncOffset; },
