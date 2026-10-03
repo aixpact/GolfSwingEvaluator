@@ -269,6 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let timerOffset = 0;
     const frameTime = 0.033;
 
+    let overlayMode    = false;
+    let overlayOpacity = 0.5;
+
     let video1Loaded = false;
     let video2Loaded = false;
 
@@ -321,6 +324,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Canvas render loop ────────────────────────────────────────────────────
     // Draws video frames continuously. Skeleton is overlaid from cached poses
     // updated by a separate polling interval (see below) so this loop stays sync.
+    // Draws Swing 2 on canvas1, letterboxed to canvas1's size, within the current transform.
+    function drawOverlay() {
+        const vw = vid2.videoWidth  || canvas2.width;
+        const vh = vid2.videoHeight || canvas2.height;
+        const fit = Math.min(canvas1.width / vw, canvas1.height / vh);
+        ctx1.save();
+        ctx1.globalAlpha = overlayOpacity;
+        ctx1.translate((canvas1.width - vw * fit) / 2, (canvas1.height - vh * fit) / 2);
+        ctx1.scale(fit, fit);
+        // Skeleton coordinates are in canvas2 pixel space
+        ctx1.drawImage(vid2, 0, 0, canvas2.width, canvas2.height);
+        const pose2 = window.PoseAnalyzer.getLastPose(1);
+        if (pose2) window.PoseAnalyzer.drawSkeleton(ctx1, pose2);
+        ctx1.restore();
+    }
+
     function renderCanvasLoop() {
         if (vid1.readyState >= 2) {
             ctx1.clearRect(0, 0, canvas1.width, canvas1.height);
@@ -330,9 +349,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx1.drawImage(vid1, 0, 0, canvas1.width, canvas1.height);
             const pose1 = window.PoseAnalyzer.getLastPose(0);
             if (pose1) window.PoseAnalyzer.drawSkeleton(ctx1, pose1);
+            if (overlayMode && vid2.readyState >= 2) drawOverlay();
             ctx1.restore();
         }
-        if (vid2.readyState >= 2) {
+        if (!overlayMode && vid2.readyState >= 2) {
             ctx2.clearRect(0, 0, canvas2.width, canvas2.height);
             ctx2.save();
             ctx2.translate(t2.x, t2.y);
@@ -542,8 +562,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let singlePane    = false;
     let activePaneIdx = 0;
 
+    const overlayToggleBtn    = document.getElementById('overlayToggleBtn');
+    const overlayControls     = document.getElementById('overlayControls');
+    const overlayOpacityInput = document.getElementById('overlayOpacity');
+    const overlayOpacityLabel = document.getElementById('overlayOpacityLabel');
+
     function applyPaneLayout() {
-        if (singlePane) {
+        videoContainer.classList.toggle('overlay-mode', overlayMode);
+        overlayToggleBtn.classList.toggle('active', overlayMode);
+        overlayControls.style.display = overlayMode ? 'flex' : 'none';
+        paneToggleBtn.style.display   = overlayMode ? 'none' : '';
+
+        if (overlayMode) {
+            paneSwitcher.style.display = 'none';
+            wrapper1.classList.remove('pane-hidden', 'pane-full');
+            wrapper2.classList.remove('pane-hidden', 'pane-full');
+        } else if (singlePane) {
             paneToggleBtn.textContent  = '⊞ Two panes';
             paneSwitcher.style.display = 'flex';
             const showFirst = activePaneIdx === 0;
@@ -564,6 +598,12 @@ document.addEventListener('DOMContentLoaded', () => {
     paneToggleBtn.addEventListener('click', () => { singlePane = !singlePane; applyPaneLayout(); });
     paneBtn1.addEventListener('click', () => { activePaneIdx = 0; applyPaneLayout(); });
     paneBtn2.addEventListener('click', () => { activePaneIdx = 1; applyPaneLayout(); });
+
+    overlayToggleBtn.addEventListener('click', () => { overlayMode = !overlayMode; applyPaneLayout(); });
+    overlayOpacityInput.addEventListener('input', () => {
+        overlayOpacity = overlayOpacityInput.value / 100;
+        overlayOpacityLabel.textContent = `${overlayOpacityInput.value}%`;
+    });
 
     // ── AppState export (for external module access if needed) ────────────────
     window.AppState = {
