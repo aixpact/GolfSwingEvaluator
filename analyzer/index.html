@@ -417,6 +417,28 @@
         .pane-tab:active  { opacity: 0.8; }
         .video-wrapper.pane-hidden { display: none; }
         .video-wrapper.pane-full   { width: 100%; }
+
+        /* ── Overlay mode ── */
+        #overlayControls {
+            display: none;
+            flex: 1;
+            align-items: center;
+            gap: 8px;
+        }
+        #overlayOpacity { flex: 1; accent-color: #0a84ff; }
+        #overlayOpacityLabel { min-width: 34px; text-align: right; }
+        .key-btn.active { background: #0a84ff; border-color: #0a84ff; color: white; }
+        .video-container.overlay-mode { flex-direction: column; }
+        .video-container.overlay-mode .video-wrapper { width: 100%; }
+        .video-container.overlay-mode .video-wrapper:last-child .canvas-wrapper { display: none; }
+        .video-container.overlay-mode .micro-scrub-row::before {
+            font-size: 11px;
+            color: #888;
+            width: 52px;
+            text-align: right;
+        }
+        .video-container.overlay-mode .video-wrapper:first-child .micro-scrub-row::before { content: 'Swing 1'; }
+        .video-container.overlay-mode .video-wrapper:last-child  .micro-scrub-row::before { content: 'Swing 2'; }
     </style>
 </head>
 <body>
@@ -449,6 +471,12 @@
             <button id="paneBtn1" class="pane-tab active">Swing 1</button>
             <button id="paneBtn2" class="pane-tab">Swing 2</button>
         </div>
+        <div id="overlayControls">
+            <span class="draw-label">Swing 2</span>
+            <input type="range" id="overlayOpacity" min="0" max="100" value="50" title="Swing 2 opacity">
+            <span id="overlayOpacityLabel" class="draw-label">50%</span>
+        </div>
+        <button id="overlayToggleBtn" class="key-btn">◐ Overlay</button>
         <button id="paneToggleBtn" class="key-btn">⊡ One pane</button>
     </div>
 
