@@ -427,6 +427,7 @@
         }
         #overlayOpacity { flex: 1; accent-color: #0a84ff; }
         #overlayOpacityLabel { min-width: 34px; text-align: right; }
+        #alignBar { display: none; }
         .key-btn.active { background: #0a84ff; border-color: #0a84ff; color: white; }
         .video-container.overlay-mode { flex-direction: column; }
         .video-container.overlay-mode .video-wrapper { width: 100%; }
@@ -478,6 +479,12 @@
         </div>
         <button id="overlayToggleBtn" class="key-btn">◐ Overlay</button>
         <button id="paneToggleBtn" class="key-btn">⊡ One pane</button>
+    </div>
+
+    <div id="alignBar" class="pane-bar">
+        <span class="draw-label">Move</span>
+        <button id="alignViewBtn" class="pane-tab active">View</button>
+        <button id="alignSwing2Btn" class="pane-tab">Swing 2</button>
     </div>
 
     <div class="video-container">
