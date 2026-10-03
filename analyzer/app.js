@@ -54,17 +54,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // Per-video zoom/pan transform (canvas-pixel units)
     const t1 = { scale: 1, x: 0, y: 0 };
     const t2 = { scale: 1, x: 0, y: 0 };
+    // Swing 2's offset relative to Swing 1 in overlay mode, applied inside t1
+    const tAlign = { scale: 1, x: 0, y: 0 };
 
     const MIN_SCALE = 0.5;
     const MAX_SCALE = 8;
 
-    function setupInteraction(dc, vc, transform) {
+    // getTarget() returns { t, parent }: the transform gestures should modify,
+    // and the transform it is nested inside (null when applied directly to the canvas).
+    function setupInteraction(dc, vc, getTarget) {
         let isDrawing = false;
         let isPanning = false;
         let pinching  = false;
         let lastX = 0, lastY = 0;
         let panStart  = { x: 0, y: 0, tx: 0, ty: 0 };
         let pinchData = { dist: 1, scale: 1, mx: 0, my: 0 };
+        let target    = null; // resolved at the start of each gesture
+
+        function toLocal(p) {
+            const par = target.parent;
+            return par ? { x: (p.x - par.x) / par.scale, y: (p.y - par.y) / par.scale } : p;
+        }
+        function parentScale() { return target.parent ? target.parent.scale : 1; }
 
         function canvasPos(e) {
             const rect = dc.getBoundingClientRect();
@@ -75,29 +86,35 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         }
 
+        // (mx, my) is the zoom anchor in canvas pixels
         function applyZoom(mx, my, newScale) {
+            const tr = target.t;
+            const m  = toLocal({ x: mx, y: my });
             newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
-            const ratio = newScale / transform.scale;
-            transform.x = mx + (transform.x - mx) * ratio;
-            transform.y = my + (transform.y - my) * ratio;
-            transform.scale = newScale;
+            const ratio = newScale / tr.scale;
+            tr.x = m.x + (tr.x - m.x) * ratio;
+            tr.y = m.y + (tr.y - m.y) * ratio;
+            tr.scale = newScale;
         }
 
         // Wheel → zoom toward cursor (always active)
         dc.addEventListener('wheel', (e) => {
             e.preventDefault();
+            target = getTarget();
             const p = canvasPos(e);
-            applyZoom(p.x, p.y, transform.scale * (e.deltaY < 0 ? 1.1 : 0.9));
+            applyZoom(p.x, p.y, target.t.scale * (e.deltaY < 0 ? 1.1 : 0.9));
         }, { passive: false });
 
-        // Double-click → reset this video's view
+        // Double-click → reset the current target
         dc.addEventListener('dblclick', () => {
-            transform.scale = 1;
-            transform.x = 0;
-            transform.y = 0;
+            const tr = getTarget().t;
+            tr.scale = 1;
+            tr.x = 0;
+            tr.y = 0;
         });
 
         function onStart(e) {
+            target = getTarget();
             // Two-finger pinch start
             if (e.touches && e.touches.length >= 2) {
                 e.preventDefault();
@@ -108,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     e.touches[1].clientX - e.touches[0].clientX,
                     e.touches[1].clientY - e.touches[0].clientY
                 );
-                pinchData.scale = transform.scale;
+                pinchData.scale = target.t.scale;
                 const rect = dc.getBoundingClientRect();
                 pinchData.mx = ((e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left) * (dc.width  / rect.width);
                 pinchData.my = ((e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top)  * (dc.height / rect.height);
@@ -134,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 isPanning = true;
                 const src = e.touches ? e.touches[0] : e;
-                panStart  = { x: src.clientX, y: src.clientY, tx: transform.x, ty: transform.y };
+                panStart  = { x: src.clientX, y: src.clientY, tx: target.t.x, ty: target.t.y };
                 dc.style.cursor = 'grabbing';
             }
         }
@@ -169,8 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 const src  = e.touches ? e.touches[0] : e;
                 const rect = dc.getBoundingClientRect();
-                transform.x = panStart.tx + (src.clientX - panStart.x) * (dc.width  / rect.width);
-                transform.y = panStart.ty + (src.clientY - panStart.y) * (dc.height / rect.height);
+                const k    = parentScale();
+                target.t.x = panStart.tx + (src.clientX - panStart.x) * (dc.width  / rect.width)  / k;
+                target.t.y = panStart.ty + (src.clientY - panStart.y) * (dc.height / rect.height) / k;
             }
         }
 
@@ -190,8 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
         dc.addEventListener('touchend',   onStop);
     }
 
-    setupInteraction(drawCanvas1, canvas1, t1);
-    setupInteraction(drawCanvas2, canvas2, t2);
+    setupInteraction(drawCanvas1, canvas1, () =>
+        overlayMode && alignSwing2 ? { t: tAlign, parent: t1 } : { t: t1, parent: null });
+    setupInteraction(drawCanvas2, canvas2, () => ({ t: t2, parent: null }));
 
     drawModeBtn.addEventListener('click', () => {
         drawMode = !drawMode;
@@ -210,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resetViewBtn.addEventListener('click', () => {
         t1.scale = 1; t1.x = 0; t1.y = 0;
         t2.scale = 1; t2.x = 0; t2.y = 0;
+        if (overlayMode && alignSwing2) { tAlign.scale = 1; tAlign.x = 0; tAlign.y = 0; }
     });
 
     // ── Jog wheel ────────────────────────────────────────────────────────────
@@ -271,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let overlayMode    = false;
     let overlayOpacity = 0.5;
+    let alignSwing2    = false;
 
     let video1Loaded = false;
     let video2Loaded = false;
@@ -331,6 +352,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const fit = Math.min(canvas1.width / vw, canvas1.height / vh);
         ctx1.save();
         ctx1.globalAlpha = overlayOpacity;
+        ctx1.translate(tAlign.x, tAlign.y);
+        ctx1.scale(tAlign.scale, tAlign.scale);
         ctx1.translate((canvas1.width - vw * fit) / 2, (canvas1.height - vh * fit) / 2);
         ctx1.scale(fit, fit);
         // Skeleton coordinates are in canvas2 pixel space
@@ -566,11 +589,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const overlayControls     = document.getElementById('overlayControls');
     const overlayOpacityInput = document.getElementById('overlayOpacity');
     const overlayOpacityLabel = document.getElementById('overlayOpacityLabel');
+    const alignBar            = document.getElementById('alignBar');
+    const alignViewBtn        = document.getElementById('alignViewBtn');
+    const alignSwing2Btn      = document.getElementById('alignSwing2Btn');
 
     function applyPaneLayout() {
         videoContainer.classList.toggle('overlay-mode', overlayMode);
         overlayToggleBtn.classList.toggle('active', overlayMode);
         overlayControls.style.display = overlayMode ? 'flex' : 'none';
+        alignBar.style.display        = overlayMode ? 'flex' : 'none';
+        alignViewBtn.classList.toggle('active',  !alignSwing2);
+        alignSwing2Btn.classList.toggle('active', alignSwing2);
         paneToggleBtn.style.display   = overlayMode ? 'none' : '';
 
         if (overlayMode) {
@@ -600,6 +629,8 @@ document.addEventListener('DOMContentLoaded', () => {
     paneBtn2.addEventListener('click', () => { activePaneIdx = 1; applyPaneLayout(); });
 
     overlayToggleBtn.addEventListener('click', () => { overlayMode = !overlayMode; applyPaneLayout(); });
+    alignViewBtn.addEventListener('click',   () => { alignSwing2 = false; applyPaneLayout(); });
+    alignSwing2Btn.addEventListener('click', () => { alignSwing2 = true;  applyPaneLayout(); });
     overlayOpacityInput.addEventListener('input', () => {
         overlayOpacity = overlayOpacityInput.value / 100;
         overlayOpacityLabel.textContent = `${overlayOpacityInput.value}%`;
